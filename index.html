@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dino Chrome Ultra</title>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f7f7f7; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
+        #game-container { position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        canvas { background-color: #fff; border-radius: 8px; display: block; }
+        .ui { position: absolute; top: 10px; right: 20px; color: #535353; font-size: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="ui">HI: <span id="highscore">00000</span> | SCORE: <span id="score">00000</span></div>
+    <canvas id="game"></canvas>
+</div>
+
+<script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const highscoreEl = document.getElementById('highscore');
+
+    canvas.width = 800;
+    canvas.height = 300;
+
+    // --- VARIABILI DI GIOCO ---
+    let score = 0;
+    let highscore = 0;
+    let gameSpeed = 6;
+    let isGameOver = false;
+    let gravity = 0.8;
+    let frame = 0;
+
+    // --- OGGETTI ---
+    const dino = {
+        x: 50, y: 240, w: 44, h: 48, dy: 0, 
+        jumpForce: 15, grounded: false, 
+        color: '#535353',
+        draw() {
+            ctx.fillStyle = this.color;
+            // Corpo Dino (Pixel Art Style semplificato)
+            ctx.fillRect(this.x, this.y, this.w, this.h); 
+            // Occhio
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(this.x + 30, this.y + 10, 5, 5);
+        }
+    };
+
+    const obstacles = [];
+    const clouds = [];
+
+    // --- FUNZIONI DI SUPPORTO ---
+    function spawnObstacle() {
+        let h = Math.random() * (60 - 30) + 30;
+        obstacles.push({ x: canvas.width, y: canvas.height - h - 10, w: 20, h: h });
+    }
+
+    function spawnCloud() {
+        clouds.push({ x: canvas.width, y: Math.random() * 100 + 20, speed: Math.random() * 1 + 0.5 });
+    }
+
+    function reset() {
+        score = 0;
+        gameSpeed = 6;
+        obstacles.length = 0;
+        isGameOver = false;
+        dino.y = 240;
+        dino.dy = 0;
+        loop();
+    }
+
+    // --- CICLO PRINCIPALE ---
+    function loop() {
+        if (isGameOver) return;
+        frame++;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Disegna Linea Terra
+        ctx.strokeStyle = '#535353';
+        ctx.beginPath();
+        ctx.moveTo(0, 290);
+        ctx.lineTo(canvas.width, 290);
+        ctx.stroke();
+
+        // Nuvole (Sfondo)
+        if (frame % 150 === 0) spawnCloud();
+        clouds.forEach((c, i) => {
+            c.x -= c.speed;
+            ctx.fillStyle = '#d1d1d1';
+            ctx.fillRect(c.x, c.y, 40, 15);
+            if (c.x + 40 < 0) clouds.splice(i, 1);
+        });
+
+        // Dinosauro - Fisica
+        dino.dy += gravity;
+        dino.y += dino.dy;
+        if (dino.y > 290 - dino.h) {
+            dino.y = 290 - dino.h;
+            dino.dy = 0;
+            dino.grounded = true;
+        }
+        dino.draw();
+
+        // Ostacoli
+        if (frame % 100 === 0) spawnObstacle();
+        obstacles.forEach((o, i) => {
+            o.x -= gameSpeed;
+            ctx.fillStyle = '#535353';
+            ctx.fillRect(o.x, o.y, o.w, o.h);
+
+            // Collisione
+            if (dino.x < o.x + o.w && dino.x + dino.w > o.x &&
+                dino.y < o.y + o.h && dino.y + dino.h > o.y) {
+                gameOver();
+            }
+
+            if (o.x + o.w < 0) {
+                obstacles.splice(i, 1);
+                score++;
+                gameSpeed += 0.1;
+            }
+        });
+
+        scoreEl.innerText = score.toString().padStart(5, '0');
+        requestAnimationFrame(loop);
+    }
+
+    function gameOver() {
+        isGameOver = true;
+        if (score > highscore) highscore = score;
+        highscoreEl.innerText = highscore.toString().padStart(5, '0');
+        
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
+        ctx.fillRect(0,0, canvas.width, canvas.height);
+        ctx.fillStyle = '#535353';
+        ctx.font = '30px Courier';
+        ctx.fillText('G A M E  O V E R', canvas.width/2 - 140, canvas.height/2);
+        ctx.font = '15px Courier';
+        ctx.fillText('Premi SPAZIO per ricominciare', canvas.width/2 - 120, canvas.height/2 + 40);
+    }
+
+    // --- CONTROLLI ---
+    window.addEventListener('keydown', e => {
+        if (e.code === 'Space') {
+            if (isGameOver) reset();
+            else if (dino.grounded) {
+                dino.dy = -dino.jumpForce;
+                dino.grounded = false;
+            }
+        }
+    });
+
+    loop();
+</script>
+</body>
+</html>
